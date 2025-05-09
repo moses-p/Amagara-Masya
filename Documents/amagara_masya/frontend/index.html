@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amagara Masya - Professional Dashboard</title>
+    <!-- Vuetify CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@3.3.22/dist/vuetify.min.css" rel="stylesheet">
+    <!-- Google Fonts for Vuetify -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <style>
+        body { background: #f5f5f5; }
+        .v-application { font-family: 'Roboto', sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <!-- Vue, Vue Router, Axios, Vuetify JS -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/vue-router@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@3.3.22/dist/vuetify.min.js"></script>
+    <script>
+        const { createApp, ref, computed } = Vue;
+        const { createRouter, createWebHashHistory } = VueRouter;
+        const { createVuetify } = Vuetify;
+
+        // Role-based navigation items
+        const navItems = {
+            admin: [
+                { title: 'Dashboard', to: '/' },
+                { title: 'Children', to: '/children' },
+                { title: 'Groups', to: '/groups' },
+                { title: 'Tracking', to: '/tracking' },
+                { title: 'Reports', to: '/reports' },
+                { title: 'Logout', to: '/logout' },
+            ],
+            staff: [
+                { title: 'Dashboard', to: '/' },
+                { title: 'Children', to: '/children' },
+                { title: 'Groups', to: '/groups' },
+                { title: 'Tracking', to: '/tracking' },
+                { title: 'Logout', to: '/logout' },
+            ],
+            donor: [
+                { title: 'Dashboard', to: '/' },
+                { title: 'My Sponsored Children', to: '/children' },
+                { title: 'Impact Reports', to: '/reports' },
+                { title: 'Logout', to: '/logout' },
+            ]
+        };
+
+        // Placeholder components for dashboards
+        const AdminDashboard = {
+            template: `
+                <v-container>
+                    <h1>Admin Dashboard</h1>
+                    <v-row class="mb-4">
+                        <v-col cols="12" md="2">
+                            <v-card color="primary" dark>
+                                <v-card-title>Total Children</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.totalChildren }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="2">
+                            <v-card color="deep-purple" dark>
+                                <v-card-title>Total Groups</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.totalGroups }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="2">
+                            <v-card color="red" dark>
+                                <v-card-title>Missing</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.missing }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="2">
+                            <v-card color="green" dark>
+                                <v-card-title>Active</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.active }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="2">
+                            <v-card color="grey darken-1" dark>
+                                <v-card-title>Dismissed</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.dismissed }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-row>
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Children by Status</v-card-title>
+                                <v-card-text><canvas id="admin-status-chart" height="120"></canvas></v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Children by Group</v-card-title>
+                                <v-card-text><canvas id="admin-group-chart" height="120"></canvas></v-card-text>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-row class="mt-4">
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Recently Added Children</v-card-title>
+                                <v-list>
+                                    <v-list-item v-for="child in recentChildren" :key="child.id">
+                                        <v-list-item-title>{{ child.first_name }} {{ child.last_name }} ({{ child.group || 'N/A' }})</v-list-item-title>
+                                    </v-list-item>
+                                </v-list>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Currently Missing</v-card-title>
+                                <v-list>
+                                    <v-list-item v-for="child in missingChildren" :key="child.id">
+                                        <v-list-item-title>{{ child.first_name }} {{ child.last_name }} ({{ child.group || 'N/A' }})</v-list-item-title>
+                                    </v-list-item>
+                                </v-list>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-row class="mt-4">
+                        <v-col cols="12">
+                            <v-btn color="primary" class="mr-2" @click="$router.push('/children')">Add New Child</v-btn>
+                            <v-btn color="primary" class="mr-2" @click="$router.push('/groups')">Add New Group</v-btn>
+                            <v-btn color="secondary" class="mr-2" @click="$router.push('/reports')">Generate Report</v-btn>
+                            <v-btn color="red" @click="$router.push('/tracking')">View All Tracking</v-btn>
+                        </v-col>
+                    </v-row>
+                </v-container>
+            `,
+            data() {
+                return {
+                    metrics: { totalChildren: 0, totalGroups: 0, missing: 0, active: 0, dismissed: 0 },
+                    children: [],
+                    groups: [],
+                    tracking: [],
+                };
+            },
+            computed: {
+                recentChildren() {
+                    return this.children.slice(-5).reverse();
+                },
+                missingChildren() {
+                    return this.children.filter(c => c.status === 'missing' || (this.tracking.find(t => t.child === c.id && t.status === 'missing'))).slice(0, 5);
+                }
+            },
+            methods: {
+                async fetchData() {
+                    const token = localStorage.getItem('token');
+                    const [childrenRes, groupsRes, trackingRes] = await Promise.all([
+                        axios.get('http://localhost:8000/api/children/children/', { headers: { Authorization: `Bearer ${token}` } }),
+                        axios.get('http://localhost:8000/api/core/groups/', { headers: { Authorization: `Bearer ${token}` } }),
+                        axios.get('http://localhost:8000/api/children/tracking/', { headers: { Authorization: `Bearer ${token}` } }),
+                    ]);
+                    this.children = childrenRes.data;
+                    this.groups = groupsRes.data.results || groupsRes.data;
+                    this.tracking = trackingRes.data.results || trackingRes.data;
+                    this.metrics.totalChildren = this.children.length;
+                    this.metrics.totalGroups = this.groups.length;
+                    this.metrics.missing = this.tracking.filter(t => t.status === 'missing').length;
+                    this.metrics.active = this.children.filter(c => c.status === 'active').length;
+                    this.metrics.dismissed = this.children.filter(c => c.status === 'inactive' || c.status === 'graduated' || c.status === 'transferred').length;
+                    this.$nextTick(this.renderCharts);
+                },
+                renderCharts() {
+                    if (!window.Chart) return;
+                    // Status chart
+                    const statusCounts = {};
+                    this.children.forEach(child => {
+                        statusCounts[child.status] = (statusCounts[child.status] || 0) + 1;
+                    });
+                    if (this._statusChart) this._statusChart.destroy();
+                    this._statusChart = new Chart(document.getElementById('admin-status-chart').getContext('2d'), {
+                        type: 'pie',
+                        data: {
+                            labels: Object.keys(statusCounts),
+                            datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#1976d2', '#43a047', '#fbc02d', '#e53935'] }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: true } } }
+                    });
+                    // Group chart
+                    const groupCounts = {};
+                    this.children.forEach(child => {
+                        groupCounts[child.group || 'N/A'] = (groupCounts[child.group || 'N/A'] || 0) + 1;
+                    });
+                    if (this._groupChart) this._groupChart.destroy();
+                    this._groupChart = new Chart(document.getElementById('admin-group-chart').getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(groupCounts),
+                            datasets: [{ data: Object.values(groupCounts), backgroundColor: '#7c4dff' }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: false } } }
+                    });
+                }
+            },
+            mounted() {
+                this.fetchData();
+                if (!window.Chart) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.onload = this.renderCharts;
+                    document.body.appendChild(script);
+                }
+            }
+        };
+        const StaffDashboard = {
+            template: `
+                <v-container>
+                    <h1>Staff Dashboard</h1>
+                    <v-row class="mb-4">
+                        <v-col cols="12" md="3">
+                            <v-card color="primary" dark>
+                                <v-card-title>Assigned Children</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.assignedChildren }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="3">
+                            <v-card color="deep-purple" dark>
+                                <v-card-title>Groups Managed</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.groupsManaged }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="3">
+                            <v-card color="green" dark>
+                                <v-card-title>Active Children</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.active }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="3">
+                            <v-card color="red" dark>
+                                <v-card-title>Missing</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.missing }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-row>
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Assigned Children by Status</v-card-title>
+                                <v-card-text><canvas id="staff-status-chart" height="120"></canvas></v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Assigned Children by Group</v-card-title>
+                                <v-card-text><canvas id="staff-group-chart" height="120"></canvas></v-card-text>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-row class="mt-4">
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Recently Added Children</v-card-title>
+                                <v-list>
+                                    <v-list-item v-for="child in recentChildren" :key="child.id">
+                                        <v-list-item-title>{{ child.first_name }} {{ child.last_name }} ({{ child.group || 'N/A' }})</v-list-item-title>
+                                    </v-list-item>
+                                </v-list>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Currently Missing</v-card-title>
+                                <v-list>
+                                    <v-list-item v-for="child in missingChildren" :key="child.id">
+                                        <v-list-item-title>{{ child.first_name }} {{ child.last_name }} ({{ child.group || 'N/A' }})</v-list-item-title>
+                                    </v-list-item>
+                                </v-list>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-row class="mt-4">
+                        <v-col cols="12">
+                            <v-btn color="primary" class="mr-2" @click="$router.push('/children')">Manage Children</v-btn>
+                            <v-btn color="primary" class="mr-2" @click="$router.push('/groups')">Manage Groups</v-btn>
+                            <v-btn color="secondary" class="mr-2" @click="$router.push('/reports')">View Reports</v-btn>
+                            <v-btn color="red" @click="$router.push('/tracking')">View Tracking</v-btn>
+                        </v-col>
+                    </v-row>
+                </v-container>
+            `,
+            data() {
+                return {
+                    metrics: { assignedChildren: 0, groupsManaged: 0, active: 0, missing: 0 },
+                    children: [],
+                    groups: [],
+                    tracking: [],
+                };
+            },
+            computed: {
+                recentChildren() {
+                    return this.children.slice(-5).reverse();
+                },
+                missingChildren() {
+                    return this.children.filter(c => c.status === 'missing' || (this.tracking.find(t => t.child === c.id && t.status === 'missing'))).slice(0, 5);
+                }
+            },
+            methods: {
+                async fetchData() {
+                    const token = localStorage.getItem('token');
+                    const [childrenRes, groupsRes, trackingRes] = await Promise.all([
+                        axios.get('http://localhost:8000/api/children/children/', { headers: { Authorization: `Bearer ${token}` } }),
+                        axios.get('http://localhost:8000/api/core/groups/', { headers: { Authorization: `Bearer ${token}` } }),
+                        axios.get('http://localhost:8000/api/children/tracking/', { headers: { Authorization: `Bearer ${token}` } }),
+                    ]);
+                    this.children = childrenRes.data;
+                    this.groups = groupsRes.data.results || groupsRes.data;
+                    this.tracking = trackingRes.data.results || trackingRes.data;
+                    this.metrics.assignedChildren = this.children.length; // For demo, all children
+                    this.metrics.groupsManaged = this.groups.length; // For demo, all groups
+                    this.metrics.active = this.children.filter(c => c.status === 'active').length;
+                    this.metrics.missing = this.tracking.filter(t => t.status === 'missing').length;
+                    this.$nextTick(this.renderCharts);
+                },
+                renderCharts() {
+                    if (!window.Chart) return;
+                    // Status chart
+                    const statusCounts = {};
+                    this.children.forEach(child => {
+                        statusCounts[child.status] = (statusCounts[child.status] || 0) + 1;
+                    });
+                    if (this._statusChart) this._statusChart.destroy();
+                    this._statusChart = new Chart(document.getElementById('staff-status-chart').getContext('2d'), {
+                        type: 'pie',
+                        data: {
+                            labels: Object.keys(statusCounts),
+                            datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#1976d2', '#43a047', '#fbc02d', '#e53935'] }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: true } } }
+                    });
+                    // Group chart
+                    const groupCounts = {};
+                    this.children.forEach(child => {
+                        groupCounts[child.group || 'N/A'] = (groupCounts[child.group || 'N/A'] || 0) + 1;
+                    });
+                    if (this._groupChart) this._groupChart.destroy();
+                    this._groupChart = new Chart(document.getElementById('staff-group-chart').getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(groupCounts),
+                            datasets: [{ data: Object.values(groupCounts), backgroundColor: '#7c4dff' }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: false } } }
+                    });
+                }
+            },
+            mounted() {
+                this.fetchData();
+                if (!window.Chart) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.onload = this.renderCharts;
+                    document.body.appendChild(script);
+                }
+            }
+        };
+        const DonorDashboard = {
+            template: `
+                <v-container>
+                    <h1>Donor Dashboard</h1>
+                    <v-row class="mb-4">
+                        <v-col cols="12" md="4">
+                            <v-card color="primary" dark>
+                                <v-card-title>Sponsored Children</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.sponsoredChildren }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="4">
+                            <v-card color="green" dark>
+                                <v-card-title>Active Sponsorships</v-card-title>
+                                <v-card-text class="display-1">{{ metrics.activeSponsorships }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="4">
+                            <v-card color="deep-purple" dark>
+                                <v-card-title>Total Donated</v-card-title>
+                                <v-card-text class="display-1">{{ '$' + metrics.totalDonated }}</v-card-text>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-row>
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Sponsored Children by Status</v-card-title>
+                                <v-card-text><canvas id="donor-status-chart" height="120"></canvas></v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Donation History</v-card-title>
+                                <v-card-text><canvas id="donor-donation-chart" height="120"></canvas></v-card-text>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-row class="mt-4">
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Recently Sponsored Children</v-card-title>
+                                <v-list>
+                                    <v-list-item v-for="child in recentChildren" :key="child.id">
+                                        <v-list-item-title>{{ child.first_name }} {{ child.last_name }} ({{ child.group || 'N/A' }})</v-list-item-title>
+                                    </v-list-item>
+                                </v-list>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-card>
+                                <v-card-title>Recent Donations</v-card-title>
+                                <v-list>
+                                    <v-list-item v-for="donation in recentDonations" :key="donation.id">
+                                        <v-list-item-title>{{ '$' + donation.amount }} - {{ donation.date }}</v-list-item-title>
+                                    </v-list-item>
+                                </v-list>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-row class="mt-4">
+                        <v-col cols="12">
+                            <v-btn color="primary" class="mr-2" @click="$router.push('/children')">View Sponsored Children</v-btn>
+                            <v-btn color="secondary" class="mr-2" @click="$router.push('/reports')">Download Impact Report</v-btn>
+                        </v-col>
+                    </v-row>
+                </v-container>
+            `,
+            data() {
+                return {
+                    metrics: { sponsoredChildren: 0, activeSponsorships: 0, totalDonated: 0 },
+                    children: [],
+                    donations: [],
+                };
+            },
+            computed: {
+                recentChildren() {
+                    return this.children.slice(-5).reverse();
+                },
+                recentDonations() {
+                    return this.donations.slice(-5).reverse();
+                }
+            },
+            methods: {
+                async fetchData() {
+                    const token = localStorage.getItem('token');
+                    // For demo, fetch all children and donations (replace with donor-specific endpoints)
+                    const [childrenRes, donationsRes] = await Promise.all([
+                        axios.get('http://localhost:8000/api/children/children/', { headers: { Authorization: `Bearer ${token}` } }),
+                        axios.get('http://localhost:8000/api/donors/', { headers: { Authorization: `Bearer ${token}` } }),
+                    ]);
+                    this.children = childrenRes.data;
+                    this.donations = (donationsRes.data.donations || []).map((d, i) => ({ ...d, id: i }));
+                    this.metrics.sponsoredChildren = this.children.length; // For demo, all children
+                    this.metrics.activeSponsorships = this.children.filter(c => c.status === 'active').length;
+                    this.metrics.totalDonated = this.donations.reduce((sum, d) => sum + (d.amount || 0), 0);
+                    this.$nextTick(this.renderCharts);
+                },
+                renderCharts() {
+                    if (!window.Chart) return;
+                    // Status chart
+                    const statusCounts = {};
+                    this.children.forEach(child => {
+                        statusCounts[child.status] = (statusCounts[child.status] || 0) + 1;
+                    });
+                    if (this._statusChart) this._statusChart.destroy();
+                    this._statusChart = new Chart(document.getElementById('donor-status-chart').getContext('2d'), {
+                        type: 'pie',
+                        data: {
+                            labels: Object.keys(statusCounts),
+                            datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#1976d2', '#43a047', '#fbc02d', '#e53935'] }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: true } } }
+                    });
+                    // Donation chart
+                    const donationDates = this.donations.map(d => d.date);
+                    const donationAmounts = this.donations.map(d => d.amount);
+                    if (this._donationChart) this._donationChart.destroy();
+                    this._donationChart = new Chart(document.getElementById('donor-donation-chart').getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: donationDates,
+                            datasets: [{ label: 'Donations', data: donationAmounts, borderColor: '#7c4dff', fill: false }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: true } } }
+                    });
+                }
+            },
+            mounted() {
+                this.fetchData();
+                if (!window.Chart) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.onload = this.renderCharts;
+                    document.body.appendChild(script);
+                }
+            }
+        };
+        const ChildrenPage = {
+            template: `
+                <v-container>
+                    <h2>Children</h2>
+                    <v-row class="mb-2">
+                        <v-col cols="12" md="4">
+                            <v-text-field v-model="search" label="Search by name or ID" clearable></v-text-field>
+                        </v-col>
+                        <v-col cols="12" md="4">
+                            <v-select v-model="filterGroup" :items="groupOptions" label="Filter by Group" clearable></v-select>
+                        </v-col>
+                        <v-col cols="12" md="4">
+                            <v-select v-model="filterStatus" :items="statusOptions" label="Filter by Status" clearable></v-select>
+                        </v-col>
+                    </v-row>
+                    <v-btn color="primary" class="mb-4" @click="printTable">Print Table</v-btn>
+                    <v-btn color="secondary" class="mb-4 ml-2" @click="exportCSV">Export CSV</v-btn>
+                    <v-data-table :headers="headers" :items="filteredChildren" :loading="loading" class="elevation-1" :editable="canEdit" @update:items="saveEdits">
+                        <template #item.group="{ item }">
+                            {{ item.group || 'N/A' }}
+                        </template>
+                        <template v-if="canEdit" #item.first_name="{ item }">
+                            <v-text-field v-model="item.first_name" dense hide-details></v-text-field>
+                        </template>
+                        <template v-if="canEdit" #item.last_name="{ item }">
+                            <v-text-field v-model="item.last_name" dense hide-details></v-text-field>
+                        </template>
+                        <template v-if="canEdit" #item.status="{ item }">
+                            <v-select v-model="item.status" :items="statusOptions" dense hide-details></v-select>
+                        </template>
+                        <template #item.actions="{ item }">
+                            <v-btn icon small color="primary" @click="openGallery(item)">
+                                <v-icon>mdi-image-multiple</v-icon>
+                            </v-btn>
+                        </template>
+                    </v-data-table>
+
+                    <!-- Photo Gallery Dialog -->
+                    <v-dialog v-model="galleryDialog" max-width="900px">
+                        <v-card>
+                            <v-card-title class="headline">
+                                Photo Gallery - {{ selectedChild ? selectedChild.first_name + ' ' + selectedChild.last_name : '' }}
+                                <v-spacer></v-spacer>
+                                <v-btn icon @click="galleryDialog = false">
+                                    <v-icon>mdi-close</v-icon>
+                                </v-btn>
+                            </v-card-title>
+                            <v-card-text>
+                                <v-row v-if="canEdit" class="mb-4">
+                                    <v-col cols="12">
+                                        <v-file-input
+                                            v-model="newPhoto"
+                                            accept="image/*"
+                                            label="Add New Photo"
+                                            prepend-icon="mdi-camera"
+                                            @change="uploadPhoto"
+                                            :loading="uploading"
+                                        ></v-file-input>
+                                    </v-col>
+                                </v-row>
+                                <v-row>
+                                    <v-col v-for="(photo, index) in childPhotos" :key="index" cols="12" sm="6" md="4">
+                                        <v-card>
+                                            <v-img
+                                                :src="photo.url"
+                                                height="200"
+                                                @click="openFullImage(photo)"
+                                                class="gallery-image"
+                                            ></v-img>
+                                            <v-card-text>
+                                                <div class="text-caption">{{ photo.date }}</div>
+                                                <div class="text-caption">{{ photo.description || 'No description' }}</div>
+                                            </v-card-text>
+                                            <v-card-actions v-if="canEdit">
+                                                <v-btn small text color="error" @click="deletePhoto(photo)">
+                                                    Delete
+                                                </v-btn>
+                                            </v-card-actions>
+                                        </v-card>
+                                    </v-col>
+                                </v-row>
+                            </v-card-text>
+                        </v-card>
+                    </v-dialog>
+
+                    <!-- Full Image Dialog -->
+                    <v-dialog v-model="fullImageDialog" max-width="1200px">
+                        <v-card>
+                            <v-img
+                                :src="selectedPhoto ? selectedPhoto.url : ''"
+                                max-height="800"
+                                contain
+                            ></v-img>
+                            <v-card-text>
+                                <div class="text-h6">{{ selectedPhoto ? selectedPhoto.date : '' }}</div>
+                                <div class="text-body-1">{{ selectedPhoto ? selectedPhoto.description : '' }}</div>
+                            </v-card-text>
+                            <v-card-actions>
+                                <v-spacer></v-spacer>
+                                <v-btn text @click="fullImageDialog = false">Close</v-btn>
+                            </v-card-actions>
+                        </v-card>
+                    </v-dialog>
+
+                    <v-divider class="my-6"></v-divider>
+                    <h3>Children by Status</h3>
+                    <canvas id="children-status-chart" height="100"></canvas>
+                </v-container>
+            `,
+            data() {
+                return {
+                    children: [],
+                    loading: true,
+                    search: '',
+                    filterGroup: null,
+                    filterStatus: null,
+                    groupOptions: [],
+                    statusOptions: ['active', 'graduated', 'transferred', 'inactive'],
+                    headers: [
+                        { text: 'First Name', value: 'first_name', editable: true },
+                        { text: 'Last Name', value: 'last_name', editable: true },
+                        { text: 'Group', value: 'group' },
+                        { text: 'Status', value: 'status', editable: true },
+                        { text: 'Age', value: 'age' },
+                        { text: 'Actions', value: 'actions', sortable: false },
+                    ],
+                    galleryDialog: false,
+                    fullImageDialog: false,
+                    selectedChild: null,
+                    childPhotos: [],
+                    newPhoto: null,
+                    uploading: false,
+                    selectedPhoto: null,
+                };
+            },
+            computed: {
+                canEdit() {
+                    const role = localStorage.getItem('role');
+                    return role === 'admin' || role === 'staff';
+                },
+                filteredChildren() {
+                    let data = this.children;
+                    if (this.search) {
+                        const s = this.search.toLowerCase();
+                        data = data.filter(c => c.first_name.toLowerCase().includes(s) || c.last_name.toLowerCase().includes(s) || (c.unique_identifier && c.unique_identifier.toLowerCase().includes(s)));
+                    }
+                    if (this.filterGroup) {
+                        data = data.filter(c => c.group === this.filterGroup);
+                    }
+                    if (this.filterStatus) {
+                        data = data.filter(c => c.status === this.filterStatus);
+                    }
+                    return data;
+                }
+            },
+            methods: {
+                async fetchChildren() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('token');
+                        const response = await axios.get('http://localhost:8000/api/children/children/', {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        this.children = response.data;
+                        this.groupOptions = [...new Set(this.children.map(c => c.group).filter(Boolean))];
+                        this.$nextTick(this.renderChart);
+                    } catch (e) {
+                        this.children = [];
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                printTable() {
+                    const printContent = document.querySelector('.v-data-table').outerHTML;
+                    const win = window.open('', '', 'width=900,height=700');
+                    win.document.write('<html><head><title>Print Table</title></head><body>' + printContent + '</body></html>');
+                    win.document.close();
+                    win.print();
+                },
+                exportCSV() {
+                    const rows = [this.headers.map(h => h.text).join(',')];
+                    this.filteredChildren.forEach(child => {
+                        rows.push([child.first_name, child.last_name, child.group, child.status, child.age].join(','));
+                    });
+                    const csv = rows.join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'children.csv';
+                    link.click();
+                },
+                async saveEdits(items) {
+                    // Save edits to backend (PATCH/PUT)
+                    const token = localStorage.getItem('token');
+                    for (const item of items) {
+                        try {
+                            await axios.patch(`http://localhost:8000/api/children/children/${item.id}/`, item, {
+                                headers: { Authorization: `Bearer ${token}` }
+                            });
+                        } catch (e) {}
+                    }
+                    this.fetchChildren();
+                },
+                renderChart() {
+                    if (!window.Chart) return;
+                    const ctx = document.getElementById('children-status-chart').getContext('2d');
+                    const statusCounts = {};
+                    this.filteredChildren.forEach(child => {
+                        statusCounts[child.status] = (statusCounts[child.status] || 0) + 1;
+                    });
+                    if (this._chart) this._chart.destroy();
+                    this._chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(statusCounts),
+                            datasets: [{ label: 'Children', data: Object.values(statusCounts), backgroundColor: '#1976d2' }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: false } } }
+                    });
+                },
+                async openGallery(child) {
+                    this.selectedChild = child;
+                    this.galleryDialog = true;
+                    await this.fetchChildPhotos(child.id);
+                },
+                async fetchChildPhotos(childId) {
+                    try {
+                        const token = localStorage.getItem('token');
+                        const response = await axios.get(`http://localhost:8000/api/children/children/${childId}/photos/`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        this.childPhotos = response.data;
+                    } catch (error) {
+                        console.error('Error fetching photos:', error);
+                        this.childPhotos = [];
+                    }
+                },
+                async uploadPhoto() {
+                    if (!this.newPhoto || !this.selectedChild) return;
+
+                    this.uploading = true;
+                    const formData = new FormData();
+                    formData.append('photo', this.newPhoto);
+                    formData.append('child', this.selectedChild.id);
+                    formData.append('date', new Date().toISOString());
+
+                    try {
+                        const token = localStorage.getItem('token');
+                        await axios.post('http://localhost:8000/api/children/photos/', formData, {
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                'Content-Type': 'multipart/form-data'
+                            }
+                        });
+                        await this.fetchChildPhotos(this.selectedChild.id);
+                        this.newPhoto = null;
+                    } catch (error) {
+                        console.error('Error uploading photo:', error);
+                    } finally {
+                        this.uploading = false;
+                    }
+                },
+                async deletePhoto(photo) {
+                    if (!confirm('Are you sure you want to delete this photo?')) return;
+
+                    try {
+                        const token = localStorage.getItem('token');
+                        await axios.delete(`http://localhost:8000/api/children/photos/${photo.id}/`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        await this.fetchChildPhotos(this.selectedChild.id);
+                    } catch (error) {
+                        console.error('Error deleting photo:', error);
+                    }
+                },
+                openFullImage(photo) {
+                    this.selectedPhoto = photo;
+                    this.fullImageDialog = true;
+                },
+            },
+            mounted() {
+                this.fetchChildren();
+                if (!window.Chart) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.onload = this.renderChart;
+                    document.body.appendChild(script);
+                }
+            }
+        };
+        const GroupsPage = {
+            template: `
+                <v-container>
+                    <h2>Groups</h2>
+                    <v-row class="mb-2">
+                        <v-col cols="12" md="6">
+                            <v-text-field v-model="search" label="Search by name or year" clearable></v-text-field>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-select v-model="filterYear" :items="yearOptions" label="Filter by Year" clearable></v-select>
+                        </v-col>
+                    </v-row>
+                    <v-btn color="primary" class="mb-4" @click="printTable">Print Table</v-btn>
+                    <v-btn color="secondary" class="mb-4 ml-2" @click="exportCSV">Export CSV</v-btn>
+                    <v-data-table :headers="headers" :items="filteredGroups" :loading="loading" class="elevation-1" :editable="canEdit" @update:items="saveEdits">
+                        <template v-if="canEdit" #item.name="{ item }">
+                            <v-text-field v-model="item.name" dense hide-details></v-text-field>
+                        </template>
+                        <template v-if="canEdit" #item.description="{ item }">
+                            <v-text-field v-model="item.description" dense hide-details></v-text-field>
+                        </template>
+                    </v-data-table>
+                    <v-divider class="my-6"></v-divider>
+                    <h3>Groups by Year</h3>
+                    <canvas id="groups-year-chart" height="100"></canvas>
+                </v-container>
+            `,
+            data() {
+                return {
+                    groups: [],
+                    loading: true,
+                    search: '',
+                    filterYear: null,
+                    yearOptions: [],
+                    headers: [
+                        { text: 'Name', value: 'name', editable: true },
+                        { text: 'Year Formed', value: 'year_formed' },
+                        { text: 'Description', value: 'description', editable: true },
+                    ],
+                };
+            },
+            computed: {
+                canEdit() {
+                    const role = localStorage.getItem('role');
+                    return role === 'admin';
+                },
+                filteredGroups() {
+                    let data = this.groups;
+                    if (this.search) {
+                        const s = this.search.toLowerCase();
+                        data = data.filter(g => g.name.toLowerCase().includes(s) || (g.year_formed && g.year_formed.toString().includes(s)));
+                    }
+                    if (this.filterYear) {
+                        data = data.filter(g => g.year_formed === this.filterYear);
+                    }
+                    return data;
+                }
+            },
+            methods: {
+                async fetchGroups() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('token');
+                        const response = await axios.get('http://localhost:8000/api/core/groups/', {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        this.groups = response.data.results || response.data;
+                        this.yearOptions = [...new Set(this.groups.map(g => g.year_formed).filter(Boolean))];
+                        this.$nextTick(this.renderChart);
+                    } catch (e) {
+                        this.groups = [];
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                printTable() {
+                    const printContent = document.querySelector('.v-data-table').outerHTML;
+                    const win = window.open('', '', 'width=900,height=700');
+                    win.document.write('<html><head><title>Print Table</title></head><body>' + printContent + '</body></html>');
+                    win.document.close();
+                    win.print();
+                },
+                exportCSV() {
+                    const rows = [this.headers.map(h => h.text).join(',')];
+                    this.filteredGroups.forEach(group => {
+                        rows.push([group.name, group.year_formed, group.description].join(','));
+                    });
+                    const csv = rows.join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'groups.csv';
+                    link.click();
+                },
+                async saveEdits(items) {
+                    const token = localStorage.getItem('token');
+                    for (const item of items) {
+                        try {
+                            await axios.patch(`http://localhost:8000/api/core/groups/${item.id}/`, item, {
+                                headers: { Authorization: `Bearer ${token}` }
+                            });
+                        } catch (e) {}
+                    }
+                    this.fetchGroups();
+                },
+                renderChart() {
+                    if (!window.Chart) return;
+                    const ctx = document.getElementById('groups-year-chart').getContext('2d');
+                    const yearCounts = {};
+                    this.filteredGroups.forEach(group => {
+                        yearCounts[group.year_formed] = (yearCounts[group.year_formed] || 0) + 1;
+                    });
+                    if (this._chart) this._chart.destroy();
+                    this._chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(yearCounts),
+                            datasets: [{ label: 'Groups', data: Object.values(yearCounts), backgroundColor: '#43a047' }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: false } } }
+                    });
+                }
+            },
+            mounted() {
+                this.fetchGroups();
+                if (!window.Chart) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.onload = this.renderChart;
+                    document.body.appendChild(script);
+                }
+            }
+        };
+        const TrackingPage = {
+            template: `
+                <v-container>
+                    <h2>Tracking</h2>
+                    <v-row class="mb-2">
+                        <v-col cols="12" md="6">
+                            <v-text-field v-model="search" label="Search by child or status" clearable></v-text-field>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-select v-model="filterStatus" :items="statusOptions" label="Filter by Status" clearable></v-select>
+                        </v-col>
+                    </v-row>
+                    <v-btn color="primary" class="mb-4" @click="printTable">Print Table</v-btn>
+                    <v-btn color="secondary" class="mb-4 ml-2" @click="exportCSV">Export CSV</v-btn>
+                    <v-data-table :headers="headers" :items="filteredTracking" :loading="loading" class="elevation-1"></v-data-table>
+                    <v-divider class="my-6"></v-divider>
+                    <h3>Tracking Status</h3>
+                    <canvas id="tracking-status-chart" height="100"></canvas>
+                </v-container>
+            `,
+            data() {
+                return {
+                    tracking: [],
+                    loading: true,
+                    search: '',
+                    filterStatus: null,
+                    statusOptions: ['missing', 'found', 'under_investigation'],
+                    headers: [
+                        { text: 'Child', value: 'child' },
+                        { text: 'Status', value: 'status' },
+                        { text: 'Last Seen', value: 'last_seen' },
+                        { text: 'Reported By', value: 'reported_by' },
+                        { text: 'Notes', value: 'notes' },
+                    ],
+                };
+            },
+            computed: {
+                filteredTracking() {
+                    let data = this.tracking;
+                    if (this.search) {
+                        const s = this.search.toLowerCase();
+                        data = data.filter(t => (t.child && t.child.toLowerCase().includes(s)) || (t.status && t.status.toLowerCase().includes(s)));
+                    }
+                    if (this.filterStatus) {
+                        data = data.filter(t => t.status === this.filterStatus);
+                    }
+                    return data;
+                }
+            },
+            methods: {
+                async fetchTracking() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('token');
+                        const response = await axios.get('http://localhost:8000/api/children/tracking/', {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        this.tracking = response.data.results || response.data;
+                        this.$nextTick(this.renderChart);
+                    } catch (e) {
+                        this.tracking = [];
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                printTable() {
+                    const printContent = document.querySelector('.v-data-table').outerHTML;
+                    const win = window.open('', '', 'width=900,height=700');
+                    win.document.write('<html><head><title>Print Table</title></head><body>' + printContent + '</body></html>');
+                    win.document.close();
+                    win.print();
+                },
+                exportCSV() {
+                    const rows = [this.headers.map(h => h.text).join(',')];
+                    this.filteredTracking.forEach(t => {
+                        rows.push([t.child, t.status, t.last_seen, t.reported_by, t.notes].join(','));
+                    });
+                    const csv = rows.join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'tracking.csv';
+                    link.click();
+                },
+                renderChart() {
+                    if (!window.Chart) return;
+                    const ctx = document.getElementById('tracking-status-chart').getContext('2d');
+                    const statusCounts = {};
+                    this.filteredTracking.forEach(t => {
+                        statusCounts[t.status] = (statusCounts[t.status] || 0) + 1;
+                    });
+                    if (this._chart) this._chart.destroy();
+                    this._chart = new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: Object.keys(statusCounts),
+                            datasets: [{ label: 'Tracking', data: Object.values(statusCounts), backgroundColor: ['#e53935', '#43a047', '#fbc02d'] }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: true } } }
+                    });
+                }
+            },
+            mounted() {
+                this.fetchTracking();
+                if (!window.Chart) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.onload = this.renderChart;
+                    document.body.appendChild(script);
+                }
+            }
+        };
+        const ReportsPage = {
+            template: `
+                <v-container>
+                    <h2>Reports</h2>
+                    <v-row class="mb-2">
+                        <v-col cols="12" md="6">
+                            <v-text-field v-model="search" label="Search by name or status" clearable></v-text-field>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-select v-model="filterStatus" :items="statusOptions" label="Filter by Status" clearable></v-select>
+                        </v-col>
+                    </v-row>
+                    <v-btn color="primary" class="mb-4" @click="printTable">Print Report</v-btn>
+                    <v-btn color="secondary" class="mb-4 ml-2" @click="exportCSV">Export CSV</v-btn>
+                    <v-data-table :headers="headers" :items="filteredReportData" :loading="loading" class="elevation-1"></v-data-table>
+                    <v-divider class="my-6"></v-divider>
+                    <h3>Children by Status</h3>
+                    <canvas id="report-status-chart" height="100"></canvas>
+                </v-container>
+            `,
+            data() {
+                return {
+                    reportData: [],
+                    loading: true,
+                    search: '',
+                    filterStatus: null,
+                    statusOptions: ['active', 'graduated', 'transferred', 'inactive'],
+                    headers: [
+                        { text: 'First Name', value: 'first_name' },
+                        { text: 'Last Name', value: 'last_name' },
+                        { text: 'Group', value: 'group' },
+                        { text: 'Status', value: 'status' },
+                        { text: 'Age', value: 'age' },
+                    ],
+                };
+            },
+            computed: {
+                filteredReportData() {
+                    let data = this.reportData;
+                    if (this.search) {
+                        const s = this.search.toLowerCase();
+                        data = data.filter(c => c.first_name.toLowerCase().includes(s) || c.last_name.toLowerCase().includes(s) || (c.status && c.status.toLowerCase().includes(s)));
+                    }
+                    if (this.filterStatus) {
+                        data = data.filter(c => c.status === this.filterStatus);
+                    }
+                    return data;
+                }
+            },
+            methods: {
+                async fetchReport() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('token');
+                        const response = await axios.get('http://localhost:8000/api/children/children/report/', {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        this.reportData = response.data.children || [];
+                        this.$nextTick(this.renderChart);
+                    } catch (e) {
+                        this.reportData = [];
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                printTable() {
+                    const printContent = document.querySelector('.v-data-table').outerHTML;
+                    const win = window.open('', '', 'width=900,height=700');
+                    win.document.write('<html><head><title>Print Report</title></head><body>' + printContent + '</body></html>');
+                    win.document.close();
+                    win.print();
+                },
+                exportCSV() {
+                    const rows = [this.headers.map(h => h.text).join(',')];
+                    this.filteredReportData.forEach(child => {
+                        rows.push([child.first_name, child.last_name, child.group, child.status, child.age].join(','));
+                    });
+                    const csv = rows.join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'report.csv';
+                    link.click();
+                },
+                renderChart() {
+                    if (!window.Chart) return;
+                    const ctx = document.getElementById('report-status-chart').getContext('2d');
+                    const statusCounts = {};
+                    this.filteredReportData.forEach(child => {
+                        statusCounts[child.status] = (statusCounts[child.status] || 0) + 1;
+                    });
+                    if (this._chart) this._chart.destroy();
+                    this._chart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(statusCounts),
+                            datasets: [{ label: 'Children', data: Object.values(statusCounts), backgroundColor: ['#1976d2', '#43a047', '#fbc02d', '#e53935'] }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: true } } }
+                    });
+                }
+            },
+            mounted() {
+                this.fetchReport();
+                if (!window.Chart) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.onload = this.renderChart;
+                    document.body.appendChild(script);
+                }
+            }
+        };
+        const LogoutPage = { template: `<v-container><h2>Logging out...</h2></v-container>`, mounted() { localStorage.clear(); this.$router.push('/login'); } };
+
+        // Login component (simple, can be improved)
+        const Login = {
+            template: `
+                <v-container class="fill-height" style="max-width:400px;margin:auto;">
+                    <v-card>
+                        <v-card-title>Login</v-card-title>
+                        <v-card-text>
+                            <v-form @submit.prevent="login">
+                                <v-text-field v-model="username" label="Username" required></v-text-field>
+                                <v-text-field v-model="password" label="Password" type="password" required></v-text-field>
+                                <v-btn type="submit" color="primary" :loading="loading" block>Login</v-btn>
+                                <v-alert v-if="error" type="error" class="mt-2">{{ error }}</v-alert>
+                            </v-form>
+                        </v-card-text>
+                    </v-card>
+                </v-container>
+            `,
+            data() { return { username: '', password: '', loading: false, error: '' }; },
+            methods: {
+                async login() {
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const response = await axios.post('http://localhost:8000/api/token/', { username: this.username, password: this.password });
+                        localStorage.setItem('token', response.data.access);
+                        localStorage.setItem('refreshToken', response.data.refresh);
+                        // Fetch user type (simulate or use a real endpoint)
+                        // For demo, use username as role
+                        let role = 'admin';
+                        if (this.username === 'staff') role = 'staff';
+                        if (this.username === 'donor') role = 'donor';
+                        localStorage.setItem('role', role);
+                        this.$router.push('/');
+                    } catch (e) {
+                        this.error = 'Invalid credentials';
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        };
+
+        // Router setup
+        const routes = [
+            { path: '/login', component: Login },
+            { path: '/', component: { render() { const role = localStorage.getItem('role'); if (role === 'admin') return Vue.h(AdminDashboard); if (role === 'staff') return Vue.h(StaffDashboard); if (role === 'donor') return Vue.h(DonorDashboard); return Vue.h(Login); } } },
+            { path: '/children', component: ChildrenPage },
+            { path: '/groups', component: GroupsPage },
+            { path: '/tracking', component: TrackingPage },
+            { path: '/reports', component: ReportsPage },
+            { path: '/logout', component: LogoutPage },
+        ];
+        const router = createRouter({ history: createWebHashHistory(), routes });
+
+        // Main App
+        const App = {
+            setup() {
+                const drawer = ref(false);
+                const role = ref(localStorage.getItem('role'));
+                router.afterEach(() => { role.value = localStorage.getItem('role'); });
+                return { drawer, role };
+            },
+            computed: {
+                navItems() {
+                    return navItems[this.role] || [];
+                }
+            },
+            template: `
+                <v-app>
+                    <v-app-bar app color="primary" dark>
+                        <v-app-bar-nav-icon @click="drawer = !drawer"></v-app-bar-nav-icon>
+                        <v-toolbar-title>Amagara Masya</v-toolbar-title>
+                    </v-app-bar>
+                    <v-navigation-drawer v-model="drawer" app>
+                        <v-list>
+                            <v-list-item v-for="item in navItems" :key="item.to" @click="$router.push(item.to)">
+                                <v-list-item-title>{{ item.title }}</v-list-item-title>
+                            </v-list-item>
+                        </v-list>
+                    </v-navigation-drawer>
+                    <v-main>
+                        <router-view></router-view>
+                    </v-main>
+                </v-app>
+            `
+        };
+
+        const vuetify = createVuetify();
+        createApp(App).use(router).use(vuetify).mount('#app');
+    </script>
+</body>
+</html> 
