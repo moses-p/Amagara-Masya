@@ -6,12 +6,190 @@
     <title>Amagara Masya - Professional Dashboard</title>
     <!-- Vuetify CSS -->
     <link href="https://cdn.jsdelivr.net/npm/vuetify@3.3.22/dist/vuetify.min.css" rel="stylesheet">
-    <!-- Google Fonts for Vuetify -->
-    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.x/css/materialdesignicons.min.css" rel="stylesheet">
     <style>
-        body { background: #f5f5f5; }
-        .v-application { font-family: 'Roboto', sans-serif; }
+        :root {
+            --primary-color: #000000;
+            --secondary-color: #1a1a1a;
+            --accent-color: #333333;
+            --success-color: #000000;
+            --warning-color: #1a1a1a;
+            --error-color: #000000;
+            --text-primary: #000000;
+            --text-secondary: #333333;
+            --background-light: #ffffff;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+            --hover-shadow: 0 6px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        body { 
+            background: var(--background-light);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .v-application { 
+            font-family: 'Inter', sans-serif !important;
+        }
+
+        .v-card {
+            border-radius: 12px !important;
+            box-shadow: var(--card-shadow) !important;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .v-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow) !important;
+        }
+
+        .v-btn {
+            font-weight: 600 !important;
+            text-transform: none !important;
+            letter-spacing: 0.5px !important;
+            border-radius: 8px !important;
+            padding: 8px 24px !important;
+            border: 2px solid var(--primary-color) !important;
+        }
+
+        .v-btn--elevated {
+            box-shadow: var(--card-shadow) !important;
+        }
+
+        .v-card-title {
+            font-weight: 700 !important;
+            font-size: 1.25rem !important;
+            color: var(--text-primary) !important;
+            letter-spacing: -0.5px !important;
+        }
+
+        .v-card-text {
+            color: var(--text-secondary) !important;
+        }
+
+        .display-1 {
+            font-weight: 800 !important;
+            color: white !important;
+            letter-spacing: -1px !important;
+        }
+
+        .v-list-item {
+            border-radius: 8px !important;
+            margin: 4px 0 !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .v-list-item:hover {
+            background-color: rgba(0, 0, 0, 0.04) !important;
+        }
+
+        .v-navigation-drawer {
+            background-color: var(--primary-color) !important;
+        }
+
+        .v-list-item--active {
+            background-color: var(--accent-color) !important;
+        }
+
+        .v-list-item-title {
+            font-weight: 600 !important;
+        }
+
+        .metric-card {
+            padding: 20px !important;
+            height: 100% !important;
+            background: var(--primary-color) !important;
+        }
+
+        .metric-card .v-card-title {
+            font-size: 1rem !important;
+            opacity: 0.9 !important;
+            color: white !important;
+        }
+
+        .metric-card .display-1 {
+            font-size: 2.5rem !important;
+            margin-top: 8px !important;
+        }
+
+        .chart-card {
+            height: 100% !important;
+            background: white !important;
+        }
+
+        .chart-card .v-card-title {
+            padding: 16px 20px !important;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .chart-card .v-card-text {
+            padding: 20px !important;
+        }
+
+        .v-app-bar {
+            background-color: var(--primary-color) !important;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
+        }
+
+        .v-chip {
+            border: 1px solid rgba(0, 0, 0, 0.2) !important;
+            font-weight: 500 !important;
+        }
+
+        .v-chip--outlined {
+            border: 2px solid var(--primary-color) !important;
+        }
+
+        .v-data-table {
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            border-radius: 12px !important;
+        }
+
+        .v-data-table-header th {
+            font-weight: 700 !important;
+            color: var(--text-primary) !important;
+            background-color: rgba(0, 0, 0, 0.02) !important;
+        }
+
+        .v-text-field {
+            border-radius: 8px !important;
+        }
+
+        .v-text-field .v-field {
+            border: 2px solid rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .v-text-field .v-field:focus-within {
+            border-color: var(--primary-color) !important;
+        }
+
+        .v-select .v-field {
+            border: 2px solid rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .v-select .v-field:focus-within {
+            border-color: var(--primary-color) !important;
+        }
+
+        .text-h4 {
+            font-weight: 800 !important;
+            letter-spacing: -1px !important;
+        }
+
+        .v-alert {
+            border-radius: 8px !important;
+            border: 2px solid !important;
+        }
+
+        .v-alert--error {
+            border-color: var(--error-color) !important;
+        }
+
+        .v-dialog .v-card {
+            border: 2px solid rgba(0, 0, 0, 0.1) !important;
+        }
     </style>
 </head>
 <body>
@@ -54,82 +232,112 @@
         // Placeholder components for dashboards
         const AdminDashboard = {
             template: `
-                <v-container>
-                    <h1>Admin Dashboard</h1>
-                    <v-row class="mb-4">
+                <v-container class="py-6">
+                    <h1 class="text-h4 font-weight-bold mb-6">Admin Dashboard</h1>
+                    <v-row class="mb-6">
                         <v-col cols="12" md="2">
-                            <v-card color="primary" dark>
+                            <v-card color="primary" dark class="metric-card">
                                 <v-card-title>Total Children</v-card-title>
                                 <v-card-text class="display-1">{{ metrics.totalChildren }}</v-card-text>
                             </v-card>
                         </v-col>
                         <v-col cols="12" md="2">
-                            <v-card color="deep-purple" dark>
+                            <v-card color="deep-purple" dark class="metric-card">
                                 <v-card-title>Total Groups</v-card-title>
                                 <v-card-text class="display-1">{{ metrics.totalGroups }}</v-card-text>
                             </v-card>
                         </v-col>
                         <v-col cols="12" md="2">
-                            <v-card color="red" dark>
+                            <v-card color="error" dark class="metric-card">
                                 <v-card-title>Missing</v-card-title>
                                 <v-card-text class="display-1">{{ metrics.missing }}</v-card-text>
                             </v-card>
                         </v-col>
                         <v-col cols="12" md="2">
-                            <v-card color="green" dark>
+                            <v-card color="success" dark class="metric-card">
                                 <v-card-title>Active</v-card-title>
                                 <v-card-text class="display-1">{{ metrics.active }}</v-card-text>
                             </v-card>
                         </v-col>
                         <v-col cols="12" md="2">
-                            <v-card color="grey darken-1" dark>
+                            <v-card color="grey darken-1" dark class="metric-card">
                                 <v-card-title>Dismissed</v-card-title>
                                 <v-card-text class="display-1">{{ metrics.dismissed }}</v-card-text>
                             </v-card>
                         </v-col>
                     </v-row>
+                    <v-row class="mb-6">
+                        <v-col cols="12" md="6">
+                            <v-card class="chart-card">
+                                <v-card-title>
+                                    <v-icon left color="primary" class="mr-2">mdi-chart-pie</v-icon>
+                                    Children by Status
+                                </v-card-title>
+                                <v-card-text><canvas id="admin-status-chart" height="200"></canvas></v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-card class="chart-card">
+                                <v-card-title>
+                                    <v-icon left color="primary" class="mr-2">mdi-chart-bar</v-icon>
+                                    Children by Group
+                                </v-card-title>
+                                <v-card-text><canvas id="admin-group-chart" height="200"></canvas></v-card-text>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-row class="mb-6">
+                        <v-col cols="12" md="6">
+                            <v-card class="chart-card">
+                                <v-card-title>
+                                    <v-icon left color="primary" class="mr-2">mdi-account-plus</v-icon>
+                                    Recently Added Children
+                                </v-card-title>
+                                <v-list>
+                                    <v-list-item v-for="child in recentChildren" :key="child.id" class="mb-2">
+                                        <v-list-item-title class="font-weight-medium">
+                                            {{ child.first_name }} {{ child.last_name }}
+                                            <v-chip small color="primary" class="ml-2">{{ child.group || 'N/A' }}</v-chip>
+                                        </v-list-item-title>
+                                    </v-list-item>
+                                </v-list>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <v-card class="chart-card">
+                                <v-card-title>
+                                    <v-icon left color="error" class="mr-2">mdi-alert</v-icon>
+                                    Currently Missing
+                                </v-card-title>
+                                <v-list>
+                                    <v-list-item v-for="child in missingChildren" :key="child.id" class="mb-2">
+                                        <v-list-item-title class="font-weight-medium">
+                                            {{ child.first_name }} {{ child.last_name }}
+                                            <v-chip small color="error" class="ml-2">{{ child.group || 'N/A' }}</v-chip>
+                                        </v-list-item-title>
+                                    </v-list-item>
+                                </v-list>
+                            </v-card>
+                        </v-col>
+                    </v-row>
                     <v-row>
-                        <v-col cols="12" md="6">
-                            <v-card>
-                                <v-card-title>Children by Status</v-card-title>
-                                <v-card-text><canvas id="admin-status-chart" height="120"></canvas></v-card-text>
-                            </v-card>
-                        </v-col>
-                        <v-col cols="12" md="6">
-                            <v-card>
-                                <v-card-title>Children by Group</v-card-title>
-                                <v-card-text><canvas id="admin-group-chart" height="120"></canvas></v-card-text>
-                            </v-card>
-                        </v-col>
-                    </v-row>
-                    <v-row class="mt-4">
-                        <v-col cols="12" md="6">
-                            <v-card>
-                                <v-card-title>Recently Added Children</v-card-title>
-                                <v-list>
-                                    <v-list-item v-for="child in recentChildren" :key="child.id">
-                                        <v-list-item-title>{{ child.first_name }} {{ child.last_name }} ({{ child.group || 'N/A' }})</v-list-item-title>
-                                    </v-list-item>
-                                </v-list>
-                            </v-card>
-                        </v-col>
-                        <v-col cols="12" md="6">
-                            <v-card>
-                                <v-card-title>Currently Missing</v-card-title>
-                                <v-list>
-                                    <v-list-item v-for="child in missingChildren" :key="child.id">
-                                        <v-list-item-title>{{ child.first_name }} {{ child.last_name }} ({{ child.group || 'N/A' }})</v-list-item-title>
-                                    </v-list-item>
-                                </v-list>
-                            </v-card>
-                        </v-col>
-                    </v-row>
-                    <v-row class="mt-4">
                         <v-col cols="12">
-                            <v-btn color="primary" class="mr-2" @click="$router.push('/children')">Add New Child</v-btn>
-                            <v-btn color="primary" class="mr-2" @click="$router.push('/groups')">Add New Group</v-btn>
-                            <v-btn color="secondary" class="mr-2" @click="$router.push('/reports')">Generate Report</v-btn>
-                            <v-btn color="red" @click="$router.push('/tracking')">View All Tracking</v-btn>
+                            <v-btn color="primary" class="mr-4" elevation="2" @click="$router.push('/children')">
+                                <v-icon left>mdi-account-plus</v-icon>
+                                Add New Child
+                            </v-btn>
+                            <v-btn color="secondary" class="mr-4" elevation="2" @click="$router.push('/groups')">
+                                <v-icon left>mdi-account-group</v-icon>
+                                Add New Group
+                            </v-btn>
+                            <v-btn color="info" class="mr-4" elevation="2" @click="$router.push('/reports')">
+                                <v-icon left>mdi-file-document</v-icon>
+                                Generate Report
+                            </v-btn>
+                            <v-btn color="error" elevation="2" @click="$router.push('/tracking')">
+                                <v-icon left>mdi-map-marker</v-icon>
+                                View All Tracking
+                            </v-btn>
                         </v-col>
                     </v-row>
                 </v-container>
