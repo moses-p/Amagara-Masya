@@ -1,0 +1,357 @@
+{% extends "frontend/base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">Notifications</h2>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary" onclick="markAllRead()">
+                        <i class="fas fa-check-double"></i> Mark All as Read
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="clearAll()">
+                        <i class="fas fa-trash"></i> Clear All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Categories</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center active" data-category="all">
+                        All Notifications
+                        <span class="badge bg-primary rounded-pill">{{ notifications|length }}</span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-category="alerts">
+                        Alerts
+                        <span class="badge bg-danger rounded-pill">{{ alerts_count }}</span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-category="updates">
+                        Updates
+                        <span class="badge bg-info rounded-pill">{{ updates_count }}</span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-category="messages">
+                        Messages
+                        <span class="badge bg-success rounded-pill">{{ messages_count }}</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Filter</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Date Range</label>
+                        <select class="form-select" id="dateFilter">
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="unreadOnly" checked>
+                            <label class="form-check-label" for="unreadOnly">
+                                Show Unread Only
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-body">
+                    <div id="notificationsList">
+                        {% for note in notifications %}
+                        <div class="notification-item mb-3 p-3 border rounded {% if not note.is_read %}bg-light{% endif %}" data-category="{{ note.category }}" data-date="{{ note.created_at|date:'Y-m-d' }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">
+                                        {% if note.category == 'alerts' %}
+                                        <i class="fas fa-exclamation-circle text-danger"></i>
+                                        {% elif note.category == 'updates' %}
+                                        <i class="fas fa-info-circle text-info"></i>
+                                        {% elif note.category == 'messages' %}
+                                        <i class="fas fa-envelope text-success"></i>
+                                        {% endif %}
+                                        {{ note.title }}
+                                    </h6>
+                                    <p class="mb-1">{{ note.message }}</p>
+                                    <small class="text-muted">{{ note.created_at|date:"M d, Y H:i" }}</small>
+                                </div>
+                                <div class="btn-group">
+                                    {% if not note.is_read %}
+                                    <button class="btn btn-sm btn-outline-primary" onclick="markAsRead('{{ note.id }}')">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteNotification('{{ note.id }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+                            <h5>No Notifications</h5>
+                            <p class="text-muted">You're all caught up!</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// WebSocket connection for real-time notifications
+const ws = new WebSocket(`ws://${window.location.host}/ws/notifications/`);
+
+ws.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    if (data.type === 'notification') {
+        addNewNotification(data.notification);
+    }
+};
+
+function addNewNotification(notification) {
+    const notificationsList = document.getElementById('notificationsList');
+    const emptyState = notificationsList.querySelector('.text-center');
+    if (emptyState) {
+        emptyState.remove();
+    }
+
+    const notificationHtml = `
+        <div class="notification-item mb-3 p-3 border rounded bg-light" data-category="${notification.category}" data-date="${notification.created_at}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1">
+                        ${getCategoryIcon(notification.category)}
+                        ${notification.title}
+                    </h6>
+                    <p class="mb-1">${notification.message}</p>
+                    <small class="text-muted">${formatDate(notification.created_at)}</small>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-primary" onclick="markAsRead('${notification.id}')">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteNotification('${notification.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    notificationsList.insertAdjacentHTML('afterbegin', notificationHtml);
+}
+
+function getCategoryIcon(category) {
+    const icons = {
+        'alerts': '<i class="fas fa-exclamation-circle text-danger"></i>',
+        'updates': '<i class="fas fa-info-circle text-info"></i>',
+        'messages': '<i class="fas fa-envelope text-success"></i>'
+    };
+    return icons[category] || '';
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function markAsRead(notificationId) {
+    fetch(`/api/notifications/${notificationId}/mark-read/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const notification = document.querySelector(`[data-notification-id="${notificationId}"]`);
+            notification.classList.remove('bg-light');
+            updateUnreadCount();
+        }
+    });
+}
+
+function markAllRead() {
+    fetch('/api/notifications/mark-all-read/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelectorAll('.notification-item').forEach(item => {
+                item.classList.remove('bg-light');
+            });
+            updateUnreadCount();
+        }
+    });
+}
+
+function deleteNotification(notificationId) {
+    if (confirm('Are you sure you want to delete this notification?')) {
+        fetch(`/api/notifications/${notificationId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const notification = document.querySelector(`[data-notification-id="${notificationId}"]`);
+                notification.remove();
+                updateUnreadCount();
+            }
+        });
+    }
+}
+
+function clearAll() {
+    if (confirm('Are you sure you want to clear all notifications?')) {
+        fetch('/api/notifications/clear-all/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const notificationsList = document.getElementById('notificationsList');
+                notificationsList.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+                        <h5>No Notifications</h5>
+                        <p class="text-muted">You're all caught up!</p>
+                    </div>
+                `;
+                updateUnreadCount();
+            }
+        });
+    }
+}
+
+function updateUnreadCount() {
+    const unreadCount = document.querySelectorAll('.notification-item.bg-light').length;
+    document.querySelector('[data-category="all"] .badge').textContent = unreadCount;
+}
+
+// Filter functionality
+document.getElementById('dateFilter').addEventListener('change', filterNotifications);
+document.getElementById('unreadOnly').addEventListener('change', filterNotifications);
+
+function filterNotifications() {
+    const dateFilter = document.getElementById('dateFilter').value;
+    const unreadOnly = document.getElementById('unreadOnly').checked;
+    const selectedCategory = document.querySelector('.list-group-item.active').dataset.category;
+
+    document.querySelectorAll('.notification-item').forEach(item => {
+        const date = new Date(item.dataset.date);
+        const isUnread = item.classList.contains('bg-light');
+        const category = item.dataset.category;
+        
+        let show = true;
+        
+        // Date filter
+        if (dateFilter !== 'all') {
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            if (dateFilter === 'today' && days > 0) show = false;
+            if (dateFilter === 'week' && days > 7) show = false;
+            if (dateFilter === 'month' && days > 30) show = false;
+        }
+        
+        // Unread filter
+        if (unreadOnly && !isUnread) show = false;
+        
+        // Category filter
+        if (selectedCategory !== 'all' && category !== selectedCategory) show = false;
+        
+        item.style.display = show ? 'block' : 'none';
+    });
+}
+
+// Category selection
+document.querySelectorAll('.list-group-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelectorAll('.list-group-item').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
+        filterNotifications();
+    });
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.notification-item {
+    transition: all 0.3s ease;
+}
+
+.notification-item:hover {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.notification-item .btn-group {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.notification-item:hover .btn-group {
+    opacity: 1;
+}
+
+.list-group-item.active {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.list-group-item.active .badge {
+    background-color: #fff;
+    color: #007bff;
+}
+</style>
+{% endblock %}
+{% endblock %} 

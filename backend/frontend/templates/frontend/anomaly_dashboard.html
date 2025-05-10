@@ -1,0 +1,162 @@
+{% extends "frontend/base.html" %}
+{% block title %}Anomaly Dashboard{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="mb-4">Anomaly Dashboard</h2>
+            <form class="row g-3 mb-3" method="get">
+                <div class="col-md-2">
+                    <label class="form-label">Severity</label>
+                    <select class="form-select" name="severity">
+                        <option value="">All</option>
+                        <option value="high" {% if severity == 'high' %}selected{% endif %}>High</option>
+                        <option value="medium" {% if severity == 'medium' %}selected{% endif %}>Medium</option>
+                        <option value="low" {% if severity == 'low' %}selected{% endif %}>Low</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" name="type">
+                        <option value="">All</option>
+                        <option value="location" {% if anomaly_type == 'location' %}selected{% endif %}>Location</option>
+                        <option value="activity" {% if anomaly_type == 'activity' %}selected{% endif %}>Activity</option>
+                        <option value="device" {% if anomaly_type == 'device' %}selected{% endif %}>Device</option>
+                        <option value="note" {% if anomaly_type == 'note' %}selected{% endif %}>Note</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">From</label>
+                    <input type="date" class="form-control" name="from" value="{{ date_from|default:'' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">To</label>
+                    <input type="date" class="form-control" name="to" value="{{ date_to|default:'' }}">
+                </div>
+                <div class="col-md-2 align-self-end">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </form>
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Child</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th>Severity</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for anomaly in anomalies %}
+                                <tr>
+                                    <td>{{ anomaly.timestamp|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        {% if anomaly.child %}
+                                            <a href="{% url 'frontend:child_details' anomaly.child.id %}">
+                                                {{ anomaly.child.first_name }} {{ anomaly.child.last_name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ anomaly.anomaly_type|title }}</td>
+                                    <td>{{ anomaly.description }}</td>
+                                    <td>
+                                        <span class="badge {% if anomaly.severity == 'high' %}bg-danger{% elif anomaly.severity == 'medium' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                                            {{ anomaly.severity|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'frontend:child_details' anomaly.child.id %}" class="btn btn-sm btn-outline-primary" title="View Child">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-danger" title="Acknowledge" onclick="acknowledgeAnomaly('{{ anomaly.id }}')">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <i class="fas fa-exclamation-triangle fa-3x text-muted mb-3"></i>
+                                        <h5>No anomalies found.</h5>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% block extra_js %}
+<script>
+// WebSocket for real-time anomaly alerts
+const ws = new WebSocket(`ws://${window.location.host}/ws/anomalies/`);
+ws.onmessage = function(event) {
+    const anomaly = JSON.parse(event.data);
+    showAnomalyToast(anomaly);
+};
+
+function showAnomalyToast(anomaly) {
+    const toast = document.createElement('div');
+    toast.className = 'toast align-items-center text-bg-danger border-0 show position-fixed top-0 end-0 m-4';
+    toast.style.zIndex = 9999;
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <strong>High Severity Anomaly Detected!</strong><br>
+                <span>${anomaly.description}</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 8000);
+    toast.querySelector('.btn-close').onclick = () => toast.remove();
+}
+
+function acknowledgeAnomaly(anomalyId) {
+    if (confirm('Acknowledge this anomaly?')) {
+        fetch(`/api/anomalies/${anomalyId}/acknowledge/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        });
+    }
+}
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
+{% endblock %} 

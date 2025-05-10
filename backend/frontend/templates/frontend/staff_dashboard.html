@@ -1,0 +1,286 @@
+{% extends "frontend/base.html" %}
+{% block title %}Staff Dashboard{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="mb-4">Staff Dashboard</h2>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Assignments</h5>
+                            <h2 class="card-text">{{ assignments|length }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Active Children</h5>
+                            <h2 class="card-text">{{ active_children_count }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Pending Tasks</h5>
+                            <h2 class="card-text">{{ pending_tasks_count }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Today's Activities</h5>
+                            <h2 class="card-text">{{ today_activities_count }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Your Assignments</h5>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addAssignmentModal">
+                        <i class="fas fa-plus"></i> New Assignment
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Child Name</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Last Update</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assignment in assignments %}
+                                <tr>
+                                    <td>
+                                        {% if assignment.child.photo %}
+                                            <img src="{{ assignment.child.photo.url }}" alt="{{ assignment.child.first_name }}" class="rounded-circle me-2" width="32" height="32" aria-label="Child photo">
+                                        {% endif %}
+                                        {{ assignment.child.first_name }} {{ assignment.child.last_name }}
+                                    </td>
+                                    <td>{{ assignment.role }}</td>
+                                    <td>
+                                        <span class="badge {% if assignment.status == 'active' %}bg-success{% else %}bg-warning{% endif %}">
+                                            {{ assignment.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ assignment.last_updated|date:"M d, Y" }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('{{ assignment.id }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success" onclick="updateStatus('{{ assignment.id }}')">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No assignments found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Activities</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for activity in recent_activities %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-0">{{ activity.title }}</h6>
+                                <small class="text-muted">{{ activity.timestamp|date:"M d, Y H:i" }}</small>
+                                <p class="mb-0">{{ activity.description }}</p>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-center">No recent activities.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" onclick="location.href='{% url 'frontend:add_note' %}'">
+                            <i class="fas fa-plus"></i> Add Progress Note
+                        </button>
+                        <button class="btn btn-success" onclick="location.href='{% url 'frontend:schedule_activity' %}'">
+                            <i class="fas fa-calendar"></i> Schedule Activity
+                        </button>
+                        <button class="btn btn-info" onclick="location.href='{% url 'frontend:view_reports' %}'">
+                            <i class="fas fa-chart-bar"></i> View Reports
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Assignment Modal -->
+<div class="modal fade" id="addAssignmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Assignment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addAssignmentForm">
+                    <div class="mb-3">
+                        <label class="form-label">Select Child</label>
+                        <select class="form-select" name="child" required>
+                            <option value="">Choose a child...</option>
+                            {% for child in available_children %}
+                            <option value="{{ child.id }}">{{ child.first_name }} {{ child.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select class="form-select" name="role" required>
+                            <option value="">Select role...</option>
+                            <option value="primary">Primary Caregiver</option>
+                            <option value="therapist">Therapist</option>
+                            <option value="mentor">Mentor</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitAssignment()">Add Assignment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+function viewDetails(assignmentId) {
+    window.location.href = `/assignments/${assignmentId}/details/`;
+}
+
+function updateStatus(assignmentId) {
+    window.location.href = `/assignments/${assignmentId}/update/`;
+}
+
+function submitAssignment() {
+    const form = document.getElementById('addAssignmentForm');
+    const formData = new FormData(form);
+    showSpinner('assignment');
+    fetch('/api/assignments/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideSpinner('assignment');
+        if (data.success) {
+            showToast('Assignment added successfully!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('Error adding assignment: ' + data.error, 'danger');
+        }
+    });
+}
+
+function showSpinner(type) {
+    let spinner = document.getElementById(type + '-spinner');
+    if (!spinner) {
+        spinner = document.createElement('div');
+        spinner.id = type + '-spinner';
+        spinner.className = 'spinner-border text-primary position-fixed top-50 start-50 translate-middle';
+        spinner.setAttribute('role', 'status');
+        spinner.setAttribute('aria-label', 'Loading...');
+        document.body.appendChild(spinner);
+    }
+    spinner.style.display = 'block';
+}
+function hideSpinner(type) {
+    const spinner = document.getElementById(type + '-spinner');
+    if (spinner) spinner.style.display = 'none';
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-bg-${type} border-0 show position-fixed top-0 end-0 m-4`;
+    toast.style.zIndex = 9999;
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 5000);
+    toast.querySelector('.btn-close').onclick = () => toast.remove();
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media (max-width: 767px) {
+    .timeline-item { padding-left: 15px; }
+    .card-title, .card-text, .btn { font-size: 1rem; }
+}
+.timeline-marker { background: #007bff; }
+.badge.bg-success { background-color: #388e3c !important; }
+.badge.bg-warning { background-color: #fbc02d !important; color: #333 !important; }
+.badge.bg-info { background-color: #0288d1 !important; color: #fff !important; }
+</style>
+{% endblock %}
+{% endblock %} 

@@ -1,0 +1,286 @@
+{% extends "frontend/base.html" %}
+{% block title %}Donor Dashboard{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="mb-4">Donor Dashboard</h2>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Donations</h5>
+                            <h2 class="card-text">${{ total_donations }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Sponsored Children</h5>
+                            <h2 class="card-text">{{ sponsored_children|length }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">This Month</h5>
+                            <h2 class="card-text">${{ monthly_donation }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Impact Score</h5>
+                            <h2 class="card-text">{{ impact_score }}/100</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Sponsored Children</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Child Name</th>
+                                    <th>Age</th>
+                                    <th>Progress</th>
+                                    <th>Last Update</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sponsorship in sponsored_children %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if sponsorship.child.photo %}
+                                                <img src="{{ sponsorship.child.photo.url }}" class="rounded-circle me-2" width="40" height="40" alt="{{ sponsorship.child.first_name }}" aria-label="Child photo">
+                                            {% endif %}
+                                            <div>
+                                                {{ sponsorship.child.first_name }} {{ sponsorship.child.last_name }}
+                                                <small class="d-block text-muted">ID: {{ sponsorship.child.id }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ sponsorship.child.age }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ sponsorship.progress }}%"></div>
+                                        </div>
+                                        <small class="text-muted">{{ sponsorship.progress }}% Complete</small>
+                                    </td>
+                                    <td>{{ sponsorship.last_update|date:"M d, Y" }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="viewChildDetails('{{ sponsorship.child.id }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success" onclick="sendMessage('{{ sponsorship.child.id }}')">
+                                                <i class="fas fa-envelope"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No sponsored children found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Donation History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Receipt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for donation in donation_history %}
+                                <tr>
+                                    <td>{{ donation.donation_date|date:"M d, Y" }}</td>
+                                    <td>${{ donation.amount }}</td>
+                                    <td>{{ donation.donation_type }}</td>
+                                    <td>
+                                        <span class="badge {% if donation.status == 'completed' %}bg-success{% elif donation.status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ donation.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="downloadReceipt('{{ donation.id }}')">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No donations found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Impact Overview</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="impactChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" onclick="location.href='{% url 'frontend:make_donation' %}'">
+                            <i class="fas fa-hand-holding-heart"></i> Make a Donation
+                        </button>
+                        <button class="btn btn-success" onclick="location.href='{% url 'frontend:sponsor_child' %}'">
+                            <i class="fas fa-child"></i> Sponsor a Child
+                        </button>
+                        <button class="btn btn-info" onclick="location.href='{% url 'frontend:view_impact_report' %}'">
+                            <i class="fas fa-chart-line"></i> View Impact Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Updates</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for update in recent_updates %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-0">{{ update.title }}</h6>
+                                <small class="text-muted">{{ update.date|date:"M d, Y" }}</small>
+                                <p class="mb-0">{{ update.content }}</p>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-center">No recent updates.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Impact Chart with color-blind friendly palette
+const ctx = document.getElementById('impactChart').getContext('2d');
+new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Education', 'Healthcare', 'Nutrition', 'Shelter'],
+        datasets: [{
+            data: [{{ education_impact }}, {{ healthcare_impact }}, {{ nutrition_impact }}, {{ shelter_impact }}],
+            backgroundColor: ['#0072B2', '#009E73', '#F0E442', '#D55E00'] // color-blind friendly
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+
+function viewChildDetails(childId) {
+    window.location.href = `/children/${childId}/details/`;
+}
+
+function sendMessage(childId) {
+    window.location.href = `/messages/new/${childId}/`;
+}
+
+function downloadReceipt(donationId) {
+    window.location.href = `/donations/${donationId}/receipt/`;
+}
+
+function showSpinner(type) {
+    let spinner = document.getElementById(type + '-spinner');
+    if (!spinner) {
+        spinner = document.createElement('div');
+        spinner.id = type + '-spinner';
+        spinner.className = 'spinner-border text-primary position-fixed top-50 start-50 translate-middle';
+        spinner.setAttribute('role', 'status');
+        spinner.setAttribute('aria-label', 'Loading...');
+        document.body.appendChild(spinner);
+    }
+    spinner.style.display = 'block';
+}
+function hideSpinner(type) {
+    const spinner = document.getElementById(type + '-spinner');
+    if (spinner) spinner.style.display = 'none';
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-bg-${type} border-0 show position-fixed top-0 end-0 m-4`;
+    toast.style.zIndex = 9999;
+    toast.innerHTML = `
+        <div class=\"d-flex\">
+            <div class=\"toast-body\">${message}</div>
+            <button type=\"button\" class=\"btn-close btn-close-white me-2 m-auto\" data-bs-dismiss=\"toast\" aria-label=\"Close\"></button>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 5000);
+    toast.querySelector('.btn-close').onclick = () => toast.remove();
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media (max-width: 767px) {
+    .timeline-item { padding-left: 15px; }
+    .card-title, .card-text, .btn, .badge { font-size: 1rem; }
+    .table td, .table th { font-size: 0.95rem; }
+}
+.timeline-marker { background: #0072B2; }
+.badge.bg-success { background-color: #009E73 !important; }
+.badge.bg-warning { background-color: #F0E442 !important; color: #333 !important; }
+.badge.bg-info { background-color: #0072B2 !important; color: #fff !important; }
+.badge.bg-danger { background-color: #D55E00 !important; }
+</style>
+{% endblock %}
+{% endblock %} 
